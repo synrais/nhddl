@@ -140,6 +140,12 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
         printf("Failed to open %s for scanning\n", entry->d_name);
         continue;
       }
+// If ID already present, skip further processing
+if (curTarget->id != NULL && strlen(curTarget->id) == 11) {
+  curTarget = curTarget->next;
+  continue;
+}
+
       chdir(titlePath);
       // Process inner directory recursively
       _findISO(d, result, device);
@@ -148,34 +154,44 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
     next:
       break;
     default:
-      // Make sure file has .iso extension
-      fileext = strrchr(entry->d_name, '.');
-      if ((fileext != NULL) && (!strcmp(fileext, ".iso") || !strcmp(fileext, ".ISO"))) {
-        // Generate full path
-        strcat(titlePath, entry->d_name);
+// Make sure file has .iso extension
+fileext = strrchr(entry->d_name, '.');
+if ((fileext != NULL) && (!strcmp(fileext, ".iso") || !strcmp(fileext, ".ISO"))) {
+  // Generate full path
+  strcat(titlePath, entry->d_name);
 
-        // Initialize target
-        Target *title = calloc(sizeof(Target), 1);
-        title->prev = NULL;
-        title->next = NULL;
-        title->fullPath = strdup(titlePath);
-        title->device = device;
+  // Initialize target
+  Target *title = calloc(sizeof(Target), 1);
+  title->prev = title->next = NULL;
+  title->fullPath = strdup(titlePath);
+  title->device = device;
 
-        // Get file name without the extension
-        int nameLength = (int)(fileext - entry->d_name);
-        title->name = calloc(sizeof(char), nameLength + 1);
-        strncpy(title->name, entry->d_name, nameLength);
+  // Detect old-style filename with serial prefix
+  char cleaned[NAME_MAX];
+  char serial[12];
+  int oldStyle = stripOldSerial(entry->d_name, cleaned, serial, sizeof(cleaned), sizeof(serial));
 
-        // Increment title counter and update target list
-        result->total++;
-        if (result->first == NULL) {
-          // If this is the first entry, update both pointers
-          result->first = title;
-          result->last = title;
-        } else {
-          insertIntoTargetList(result, title);
-        }
-      }
+  if (oldStyle) {
+    title->name = strdup(cleaned);
+    title->id   = strdup(serial);
+  } else {
+    // Get file name without the extension
+    int nameLength = (int)(fileext - entry->d_name);
+    title->name = calloc(sizeof(char), nameLength + 1);
+    strncpy(title->name, entry->d_name, nameLength);
+    title->id = NULL;
+  }
+
+  // Increment title counter and update target list
+  result->total++;
+  if (result->first == NULL) {
+    // If this is the first entry, update both pointers
+    result->first = title;
+    result->last = title;
+  } else {
+    insertIntoTargetList(result, title);
+  }
+}
     }
   }
   curRecursionLevel--;
@@ -210,7 +226,8 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
     // Ignore targets not belonging to the current device
     if (curTarget->device != device) {
       curTarget = curTarget->next;
-      continue;
+      continue;}
+}
     }
 
     // Try to get title ID from cache
