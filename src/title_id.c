@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 
 //
@@ -31,6 +32,33 @@ struct dirTOCEntry {
   char filename[128];       // 33
 } __attribute__((packed));
 
+
+// Quick path: extract 11‑char serial ID directly from filename, e.g. "SLUS_206.66.Gran Turismo.iso".
+// Returns malloc‑ed string if pattern matches, else NULL.
+static char *extractIDFromPath(const char *path)
+{
+    const char *filename = strrchr(path, '/');
+    if (!filename)
+        filename = path;
+    else
+        filename++; // skip '/'
+
+    // Minimum: 11 chars ID + '.' following => 12
+    if (strlen(filename) < 12)
+        return NULL;
+
+    // Structural check: "XXXX_XXX.XX." at start
+    if (filename[4] != '_' || filename[8] != '.' || filename[11] != '.')
+        return NULL;
+
+    char *id = malloc(12);
+    if (!id)
+        return NULL;
+    memcpy(id, filename, 11);
+    id[11] = '\0';
+    return id;
+}
+
 static unsigned char iso_buf[SECTOR_SIZE];
 
 // Reads Primary Volume Descriptor from specified LBA and extracts root directory LBA
@@ -40,6 +68,10 @@ static struct dirTOCEntry *getTOCEntry(int fd, uint32_t tocLBA, int tocLength);
 
 // Loads SYSTEM.CNF from ISO and extracts title ID
 char *getTitleID(char *path) {
+  // Fast path: derive ID from filename when using old OPL naming
+  char *quick = extractIDFromPath(path);
+  if (quick) return quick;
+
   // Open ISO
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
