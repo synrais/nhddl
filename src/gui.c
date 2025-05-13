@@ -35,7 +35,6 @@ void closeUISplashThread();
 GSGLOBAL *gsGlobal;
 static GSTEXTURE *coverTexture;
 static char lineBuffer[255];
-static int needsUpdate = 0;  // flag to defer cover art and per-title loads
 
 // Path relative to storage device mountpoint.
 // Used to load cover art
@@ -207,7 +206,7 @@ int uiLoop(TargetList *titles) {
   free(lastTitle);
 
   // Load cover art
-          needsUpdate = 1;  // defer loads  // defer cover-art and per-title loads
+  isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
 
   // Main UI loop
   int frameCount = 0;
@@ -220,7 +219,7 @@ int uiLoop(TargetList *titles) {
     // Reload target if index has changed
     if (curTarget->idx != selectedTitleIdx) {
       curTarget = getTargetByIdx(titles, selectedTitleIdx);
-              needsUpdate = 1;  // defer loads  // defer cover-art and per-title loads
+      isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
     }
 
     // Draw title list
