@@ -247,8 +247,8 @@ int uiLoop(TargetList *titles) {
       continue;
 
     frameCount = 0;
-    int lastInput = prevInput;
-        prevInput = input;
+    lastInput = prevInput;
+    prevInput = input;
 
     if (input & (PAD_CROSS | PAD_CIRCLE)) {
       // Copy target, free title list and launch
@@ -257,13 +257,13 @@ int uiLoop(TargetList *titles) {
       uiLaunchTitle(target, NULL);
       // Something went wrong, main loop must exit immediately
       return -1;
-    } else if ((lastInput & PAD_UP) && !(input & PAD_UP)) {
+    } else if (input & PAD_UP) {
       // Point to the previous title
       selectedTitleIdx = ((selectedTitleIdx - 1) + titles->total) % titles->total;
-    } else if ((lastInput & PAD_DOWN) && !(input & PAD_DOWN)) {
+    } else if (input & PAD_DOWN) {
       // Advance to the next title
       selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
-    } else if ((lastInput & PAD_R1) && !(input & PAD_R1)) {
+    } else if (input & PAD_R1) {
       // Switch to the next page
       if (selectedTitleIdx == titles->total - 1) {
         selectedTitleIdx = 0; // Wrap around if the last title is selected
@@ -272,7 +272,7 @@ int uiLoop(TargetList *titles) {
         if (selectedTitleIdx >= titles->total)
           selectedTitleIdx = titles->total - 1;
       }
-    } else if ((lastInput & PAD_L1) && !(input & PAD_L1)) {
+    } else if (input & PAD_L1) {
       // Switch to the previous page
       if (selectedTitleIdx == 0) {
         selectedTitleIdx = titles->total - 1; // Wrap around if the first title is selected
@@ -281,7 +281,7 @@ int uiLoop(TargetList *titles) {
         if (selectedTitleIdx < 0)
           selectedTitleIdx = 0;
       }
-    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
+    } else if (input & PAD_TRIANGLE) {
       input = -1;    // Force UI loop to wait once uiTitleOptionsLoop returns
       prevInput = 0; // Reset previous input
       // Enter title options screen
@@ -289,7 +289,7 @@ int uiLoop(TargetList *titles) {
         // Something went wrong, main loop must exit immediately
         return -1;
       }
-    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
+    } else if (input & PAD_START) {
       // Quit
       break;
     }
@@ -458,10 +458,10 @@ int uiTitleOptionsLoop(Target *target) {
       uiLaunchTitle(target, titleArguments);
       res = -1; // If this was somehow reached, something went terribly wrong
       goto exit;
-    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
+    } else if (input & PAD_START) {
       updateTitleLaunchArguments(target, titleArguments);
       goto exit;
-    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
+    } else if (input & PAD_TRIANGLE) {
       // Quit to title list
       goto exit;
     } else {
@@ -552,11 +552,11 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
       // If the argument was disabled, reset global flag
       if (curArgument->isDisabled)
         curArgument->isGlobal = 0;
-    } else if ((lastInput & PAD_UP) && !(input & PAD_UP)) {
+    } else if (input & PAD_UP) {
       // Point to the previous argument
       selectedArgIdx = (selectedArgIdx - 1 + titleArguments->total) % titleArguments->total;
       curArgument = (curArgument->prev) ? curArgument->prev : titleArguments->last;
-    } else if ((lastInput & PAD_DOWN) && !(input & PAD_DOWN)) {
+    } else if (input & PAD_DOWN) {
       // Advance to the next argument
       selectedArgIdx = (selectedArgIdx + 1) % titleArguments->total;
       curArgument = (curArgument->next) ? curArgument->next : titleArguments->first;
@@ -566,10 +566,10 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
       // Launch title without saving arguments
       uiLaunchTitle(target, titleArguments);
       return -1; // If this was somehow reached, something went terribly wrong
-    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
+    } else if (input & PAD_START) {
       updateTitleLaunchArguments(target, titleArguments);
       return 1;
-    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
+    } else if (input & PAD_TRIANGLE) {
       return 1;
     }
   }
