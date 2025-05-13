@@ -206,7 +206,7 @@ int uiLoop(TargetList *titles) {
   free(lastTitle);
 
   // Load cover art
-      needsUpdate = true;  // defer cover-art and per-title loads
+          needsUpdate = 1;  // defer loads  // defer cover-art and per-title loads
 
   // Main UI loop
   int frameCount = 0;
@@ -219,7 +219,7 @@ int uiLoop(TargetList *titles) {
     // Reload target if index has changed
     if (curTarget->idx != selectedTitleIdx) {
       curTarget = getTargetByIdx(titles, selectedTitleIdx);
-          needsUpdate = true;  // defer cover-art and per-title loads
+              needsUpdate = 1;  // defer loads  // defer cover-art and per-title loads
     }
 
     // Draw title list
