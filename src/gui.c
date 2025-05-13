@@ -211,7 +211,6 @@ int uiLoop(TargetList *titles) {
   // Main UI loop
   int frameCount = 0;
   int prevInput = 0;
-    int lastInput = 0;
   int input = 0;
   while (1) {
     gsKit_clear(gsGlobal, BGColor);
@@ -248,7 +247,7 @@ int uiLoop(TargetList *titles) {
       continue;
 
     frameCount = 0;
-        int lastInput = prevInput;
+    int lastInput = prevInput;
         prevInput = input;
 
     if (input & (PAD_CROSS | PAD_CIRCLE)) {
