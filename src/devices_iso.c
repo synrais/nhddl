@@ -61,6 +61,7 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device);
 char *getCachedTitleID(char *fullPath, TitleIDCache *cache);
 void freeTitleCache(TitleIDCache *cache);
 
+void addEntryToTitleIDCache(const char *titleID, const char *path, TitleIDCache *cache);
 // Directories to skip when browsing for ISOs
 const char *ignoredDirs[] = {
     "nhddl", "neutrino", "APPS", "ART", "CFG", "CHT", "LNG", "THM", "VMC", "XEBPLUS", "MemoryCards", "bbnl",
