@@ -35,6 +35,7 @@ void closeUISplashThread();
 GSGLOBAL *gsGlobal;
 static GSTEXTURE *coverTexture;
 static char lineBuffer[255];
+static int needsUpdate = 0;  // flag to defer cover art and per-title loads
 
 // Path relative to storage device mountpoint.
 // Used to load cover art
