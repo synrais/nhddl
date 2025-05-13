@@ -295,6 +295,42 @@ while (curTarget != NULL) {
 }
 
 //
+/* ------------------------------------------------------------------
+ *  addEntryToTitleIDCache – append or update one entry in the cache
+ * ------------------------------------------------------------------ */
+void addEntryToTitleIDCache(const char *titleID,
+                            const char *path,
+                            TitleIDCache *cache)
+{
+    if (cache == NULL || titleID == NULL || path == NULL)
+        return;
+
+    /* Check for existing path entry */
+    for (int i = 0; i < cache->total; i++) {
+        if (!strcmp(cache->entries[i].fullPath, path)) {
+            strncpy(cache->entries[i].titleID, titleID, 11);
+            cache->entries[i].titleID[11] = '\0';
+            return;
+        }
+    }
+
+    /* Grow array to add new entry */
+    CacheEntry *newEntries = realloc(cache->entries,
+                                     (cache->total + 1) * sizeof(CacheEntry));
+    if (newEntries == NULL)
+        return; /* allocation failed */
+
+    cache->entries = newEntries;
+    CacheEntry *e = &cache->entries[cache->total++];
+    strncpy(e->titleID, titleID, 11);
+    e->titleID[11] = '\0';
+
+    /* Store relative path (skip device mountpoint) to keep cache portable */
+    int mountpointLen = getRelativePathIdx(path);
+    const char *relPath = (mountpointLen == -1) ? path : path + mountpointLen;
+    e->fullPath = strdup(relPath);
+}
+
 // Title cache
 //
 
