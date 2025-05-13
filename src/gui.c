@@ -171,8 +171,7 @@ int uiLoop(TargetList *titles) {
 
   int res = 0;
   if ((gsGlobal == NULL) && (res = uiInit())) {
-    printf("ERROR: Failed to init UI: %d
-", res);
+    printf("ERROR: Failed to init UI: %d\n", res);
     goto exit;
   }
 
@@ -261,7 +260,6 @@ exit:
   closeUI();
   return res;
 }
-
 
 void drawTitleListFooter(int baseX) {
   int baseY = gsGlobal->Height - footerHeight;
