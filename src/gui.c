@@ -212,8 +212,6 @@ int uiLoop(TargetList *titles) {
   int frameCount = 0;
   int prevInput = 0;
   int input = 0;
-    int prevInput = 0;
-    unsigned int lastInput = 0;
   while (1) {
     gsKit_clear(gsGlobal, BGColor);
     gsKit_TexManager_nextFrame(gsGlobal);
@@ -236,11 +234,19 @@ int uiLoop(TargetList *titles) {
 
     // Process user inputs:
     if (input == -1)            // If input is -1, block until input changes
-      input = waitForInput(-1);
-    lastInput = prevInput;
-    prevInput = input;
-    lastInput = prevInput;
-    prevInput = input; // Used to ignore held inputs after returning from title options
+      input = waitForInput(-1); 
+        
+        if (frameCount && input == prevInput)
+            continue;
+        frameCount = 0;
+        lastInput = prevInput;
+        prevInput = input;
+        if (frameCount && input == prevInput)
+            continue;
+        frameCount = 0;
+        lastInput = prevInput;
+        prevInput = input;
+        // Used to ignore held inputs after returning from title options
     else
       input = pollInput();
 
@@ -414,14 +420,15 @@ void drawTitleOptionsFooter(int baseX) {
 // Draws well-known Neutrino arguments
 // Returns -1 if error occurs
 int uiTitleOptionsLoop(Target *target) {
+    int frameCount = 0;
+    int prevInput = 0;
+    unsigned int lastInput = 0;
   int res = 0;
 
   // Load arguments from config files
   ArgumentList *titleArguments = loadLaunchArgumentLists(target);
   int input = 0;
   int activeArgumentIdx = 0;
-    int prevInput = 0;
-    unsigned int lastInput = 0;
 
   // Parse arguments
   for (int i = 0; i < (uiArgumentsTotal); i++)
@@ -451,7 +458,19 @@ int uiTitleOptionsLoop(Target *target) {
 
     // Process user inputs
     input = waitForInput(-1);
-    if ((lastInput & (PAD_L1 | PAD_R1)) && !(input & (PAD_L1 | PAD_R1))) {
+    
+        
+        if (frameCount && input == prevInput)
+            continue;
+        frameCount = 0;
+        lastInput = prevInput;
+        prevInput = input;
+        if (frameCount && input == prevInput)
+            continue;
+        frameCount = 0;
+        lastInput = prevInput;
+        prevInput = input;
+        if (input & (PAD_L1 | PAD_R1)) {
       // Show full argument list
       if ((res = uiArgumentListLoop(target, titleArguments)))
         goto exit;
@@ -460,7 +479,7 @@ int uiTitleOptionsLoop(Target *target) {
       activeArgumentIdx = 0;
       for (i = 0; i < uiArgumentsTotal; i++)
         uiArguments[i].parse(&uiArguments[i], titleArguments);
-    } else if ((lastInput & PAD_SQUARE) && !(input & PAD_SQUARE)) {
+    } else if (input & PAD_SQUARE) {
       // Launch title without saving arguments
       uiLaunchTitle(target, titleArguments);
       res = -1; // If this was somehow reached, something went terribly wrong
@@ -496,6 +515,9 @@ exit:
 // Handles all arguments in arugment list
 // Returns -1 if error occurs, 1 if parent needs to exit to title list
 int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
+    int frameCount = 0;
+    int prevInput = 0;
+    unsigned int lastInput = 0;
   int selectedArgIdx = 0;
   int input = 0;
 
@@ -553,7 +575,19 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
 
     // Process user inputs
     input = waitForInput(-1);
-    if (input & (PAD_CROSS | PAD_CIRCLE)) {
+    
+        
+        if (frameCount && input == prevInput)
+            continue;
+        frameCount = 0;
+        lastInput = prevInput;
+        prevInput = input;
+        if (frameCount && input == prevInput)
+            continue;
+        frameCount = 0;
+        lastInput = prevInput;
+        prevInput = input;
+        if (input & (PAD_CROSS | PAD_CIRCLE)) {
       // Toggle argument
       curArgument->isDisabled = !curArgument->isDisabled;
       // If the argument was disabled, reset global flag
@@ -567,9 +601,9 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
       // Advance to the next argument
       selectedArgIdx = (selectedArgIdx + 1) % titleArguments->total;
       curArgument = (curArgument->next) ? curArgument->next : titleArguments->first;
-    } else if ((lastInput & (PAD_L1 | PAD_R1)) && !(input & (PAD_L1 | PAD_R1))) {
+    } else if (input & (PAD_L1 | PAD_R1)) {
       return 0;
-    } else if ((lastInput & PAD_SQUARE) && !(input & PAD_SQUARE)) {
+    } else if (input & PAD_SQUARE) {
       // Launch title without saving arguments
       uiLaunchTitle(target, titleArguments);
       return -1; // If this was somehow reached, something went terribly wrong
