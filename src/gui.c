@@ -164,143 +164,81 @@ void closeUI() {
 
 // Main UI loop. Displays the target list.
 int uiLoop(TargetList *titles) {
-  // Reinitialize UI if video mode doesn't match
-  if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
-    uiInit();
-  }
-
-  int res = 0;
-  if ((gsGlobal == NULL) && (res = uiInit(0))) {
-    printf("ERROR: Failed to init UI: %d\n", res);
-    goto exit;
-  }
-  // Init gamepad inputs
-  initPad();
-
-  int isCoverUninitialized = 1;
-  int selectedTitleIdx = 0;
-  int maxTitlesPerPage = (gsGlobal->Height - (headerHeight + footerHeight)) / getFontLineHeight();
-  Target *curTarget = titles->first;
-
-  // Get last launched title and find it in the target list
-  char *lastTitle = calloc(sizeof(char), PATH_MAX + 1);
-  if (!getLastLaunchedTitle(lastTitle)) {
-    int mountpointLen;
-    while (curTarget != NULL) {
-      // Compare paths without the mountpoint
-      mountpointLen = getRelativePathIdx(curTarget->fullPath);
-      if (mountpointLen == -1)
-        mountpointLen = 0;
-
-      if (!strcmp(lastTitle, &curTarget->fullPath[mountpointLen])) {
-        selectedTitleIdx = curTarget->idx;
-        break;
-      }
-      curTarget = curTarget->next;
-    }
-    // Reinitialize target if last launched title couldn't be loaded
-    if (curTarget == NULL) {
-      curTarget = titles->first;
-    }
-  }
-  free(lastTitle);
-
-  // Load cover art
-  isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-
-  // Main UI loop
-  int frameCount = 0, prevInput = 0, input = 0;
-  unsigned int lastInput = 0;
-  while (1) {
-    gsKit_clear(gsGlobal, BGColor);
-    gsKit_TexManager_nextFrame(gsGlobal);
-
-    // Reload target if index has changed
-    if (curTarget->idx != selectedTitleIdx) {
-      curTarget = getTargetByIdx(titles, selectedTitleIdx);
-      isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+    // Reinitialize UI if video mode doesn't match
+    if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
+        uiInit();
     }
 
-    // Draw title list
-    if (!isCoverUninitialized)
-      drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage, coverTexture);
-    else
-      drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage, NULL);
-
-    gsKit_queue_exec(gsGlobal);
-    gsKit_finish();
-    gsKit_sync_flip(gsGlobal);
-
-    // Process user inputs: block once if input == -1, otherwise poll
-    if (input == -1) {
-      input = waitForInput(-1);
-    } else {
-      input = pollInput();
+    int res = 0;
+    if ((gsGlobal == NULL) && (res = uiInit(0))) {
+        printf("ERROR: Failed to init UI: %d
+", res);
+        goto exit;
     }
 
-    // Debounce: ignore repeats within the same frame window
+    initPad();
 
-    if (gsGlobal->Mode == GS_MODE_PAL)
-      frameCount = (frameCount + 1) % 8; // Handle input only every 8th frame unless it changes
-    else
-      frameCount = (frameCount + 1) % 10; // Handle input only every 10th frame unless it changes
+    int isCoverUninitialized = 1;
+    int selectedTitleIdx = 0;
+    int maxTitlesPerPage = (gsGlobal->Height - (headerHeight + footerHeight)) / getFontLineHeight();
+    Target *curTarget = titles->first;
 
-    if (frameCount && (input == prevInput))
-      continue;
-
-    frameCount = 0;
-    prevInput = input;
-
-    if (input & (PAD_CROSS | PAD_CIRCLE)) {
-      // Copy target, free title list and launch
-      Target *target = copyTarget(curTarget);
-      freeTargetList(titles);
-      uiLaunchTitle(target, NULL);
-      // Something went wrong, main loop must exit immediately
-      return -1;
-    } else if ((lastInput & PAD_UP) && !(input & PAD_UP)) {
-      // Point to the previous title
-      selectedTitleIdx = ((selectedTitleIdx - 1) + titles->total) % titles->total;
-    } else if ((lastInput & PAD_DOWN) && !(input & PAD_DOWN)) {
-      // Advance to the next title
-      selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
-    } else if ((lastInput & PAD_R1) && !(input & PAD_R1)) {
-      // Switch to the next page
-      if (selectedTitleIdx == titles->total - 1) {
-        selectedTitleIdx = 0; // Wrap around if the last title is selected
-      } else {
-        selectedTitleIdx += maxTitlesPerPage;
-        if (selectedTitleIdx >= titles->total)
-          selectedTitleIdx = titles->total - 1;
-      }
-    } else if ((lastInput & PAD_L1) && !(input & PAD_L1)) {
-      // Switch to the previous page
-      if (selectedTitleIdx == 0) {
-        selectedTitleIdx = titles->total - 1; // Wrap around if the first title is selected
-      } else {
-        selectedTitleIdx -= maxTitlesPerPage;
-        if (selectedTitleIdx < 0)
-          selectedTitleIdx = 0;
-      }
-    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
-      input = -1;    // Force UI loop to wait once uiTitleOptionsLoop returns
-      prevInput = 0; // Reset previous input
-      // Enter title options screen
-      if ((res = uiTitleOptionsLoop(curTarget)) < 0) {
-        // Something went wrong, main loop must exit immediately
-        return -1;
-      }
-    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
-      // Quit
-      break;
+    char *lastTitle = calloc(sizeof(char), PATH_MAX + 1);
+    if (!getLastLaunchedTitle(lastTitle)) {
+        curTarget = findTargetByLastTitle(titles, lastTitle);
+        if (curTarget) selectedTitleIdx = curTarget->idx;
     }
-  }
+    free(lastTitle);
+
+    isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+
+    int prevInput = 0, input = 0;
+    int needToLoadCover = 0;
+
+    while (1) {
+        gsKit_clear(gsGlobal, BGColor);
+        gsKit_TexManager_nextFrame(gsGlobal);
+
+        if (needToLoadCover && (input == 0)) {  // Only load cover after navigation stops
+            curTarget = getTargetByIdx(titles, selectedTitleIdx);
+            isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+            needToLoadCover = 0;
+        }
+
+        drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
+                      isCoverUninitialized ? NULL : coverTexture);
+
+        gsKit_queue_exec(gsGlobal);
+        gsKit_finish();
+        gsKit_sync_flip(gsGlobal);
+
+        input = pollInput();
+
+        if (input != prevInput && (input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1))) {
+            if (input & PAD_UP) selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
+            else if (input & PAD_DOWN) selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
+            else if (input & PAD_R1) selectedTitleIdx = min(selectedTitleIdx + maxTitlesPerPage, titles->total - 1);
+            else if (input & PAD_L1) selectedTitleIdx = max(selectedTitleIdx - maxTitlesPerPage, 0);
+
+            needToLoadCover = 1; // Mark cover for loading after input stops
+        }
+
+        if (input & (PAD_CROSS | PAD_CIRCLE)) {
+            uiLaunchTitle(copyTarget(curTarget), NULL);
+            return -1;
+        }
+        if (input & PAD_TRIANGLE) uiTitleOptionsLoop(curTarget);
+        if (input & PAD_START) break;
+
+        prevInput = input;
+    }
 
 exit:
-  closePad();
-  closeUI();
-  return res;
+    closePad();
+    closeUI();
+    return res;
 }
+
 
 void drawTitleListFooter(int baseX) {
   int baseY = gsGlobal->Height - footerHeight;
@@ -410,9 +348,6 @@ void drawTitleOptionsFooter(int baseX) {
 // Draws well-known Neutrino arguments
 // Returns -1 if error occurs
 int uiTitleOptionsLoop(Target *target) {
-    int frameCount = 0;
-    int prevInput = 0;
-    unsigned int lastInput = 0;
   int res = 0;
 
   // Load arguments from config files
@@ -448,19 +383,7 @@ int uiTitleOptionsLoop(Target *target) {
 
     // Process user inputs
     input = waitForInput(-1);
-    
-        
-        if (frameCount && input == prevInput)
-            continue;
-        frameCount = 0;
-        lastInput = prevInput;
-        prevInput = input;
-        if (frameCount && input == prevInput)
-            continue;
-        frameCount = 0;
-        lastInput = prevInput;
-        prevInput = input;
-        if (input & (PAD_L1 | PAD_R1)) {
+    if (input & (PAD_L1 | PAD_R1)) {
       // Show full argument list
       if ((res = uiArgumentListLoop(target, titleArguments)))
         goto exit;
@@ -474,10 +397,10 @@ int uiTitleOptionsLoop(Target *target) {
       uiLaunchTitle(target, titleArguments);
       res = -1; // If this was somehow reached, something went terribly wrong
       goto exit;
-    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
+    } else if (input & PAD_START) {
       updateTitleLaunchArguments(target, titleArguments);
       goto exit;
-    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
+    } else if (input & PAD_TRIANGLE) {
       // Quit to title list
       goto exit;
     } else {
@@ -505,9 +428,6 @@ exit:
 // Handles all arguments in arugment list
 // Returns -1 if error occurs, 1 if parent needs to exit to title list
 int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
-    int frameCount = 0;
-    int prevInput = 0;
-    unsigned int lastInput = 0;
   int selectedArgIdx = 0;
   int input = 0;
 
@@ -565,29 +485,17 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
 
     // Process user inputs
     input = waitForInput(-1);
-    
-        
-        if (frameCount && input == prevInput)
-            continue;
-        frameCount = 0;
-        lastInput = prevInput;
-        prevInput = input;
-        if (frameCount && input == prevInput)
-            continue;
-        frameCount = 0;
-        lastInput = prevInput;
-        prevInput = input;
-        if (input & (PAD_CROSS | PAD_CIRCLE)) {
+    if (input & (PAD_CROSS | PAD_CIRCLE)) {
       // Toggle argument
       curArgument->isDisabled = !curArgument->isDisabled;
       // If the argument was disabled, reset global flag
       if (curArgument->isDisabled)
         curArgument->isGlobal = 0;
-    } else if ((lastInput & PAD_UP) && !(input & PAD_UP)) {
+    } else if (input & PAD_UP) {
       // Point to the previous argument
       selectedArgIdx = (selectedArgIdx - 1 + titleArguments->total) % titleArguments->total;
       curArgument = (curArgument->prev) ? curArgument->prev : titleArguments->last;
-    } else if ((lastInput & PAD_DOWN) && !(input & PAD_DOWN)) {
+    } else if (input & PAD_DOWN) {
       // Advance to the next argument
       selectedArgIdx = (selectedArgIdx + 1) % titleArguments->total;
       curArgument = (curArgument->next) ? curArgument->next : titleArguments->first;
@@ -597,10 +505,10 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
       // Launch title without saving arguments
       uiLaunchTitle(target, titleArguments);
       return -1; // If this was somehow reached, something went terribly wrong
-    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
+    } else if (input & PAD_START) {
       updateTitleLaunchArguments(target, titleArguments);
       return 1;
-    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
+    } else if (input & PAD_TRIANGLE) {
       return 1;
     }
   }
