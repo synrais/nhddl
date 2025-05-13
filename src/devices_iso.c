@@ -12,6 +12,36 @@
 #include <string.h>
 #include <unistd.h>
 
+#define IS_UPPER_ASCII(c) ((c) >= 'A' && (c) <= 'Z')
+
+/* Detect legacy filename "SLUS_206.66.Game.iso". */
+static int stripOldSerial(const char *filename,
+                          char *outTitle, char *outId,
+                          size_t titleSize, size_t idSize)
+{
+    if (!filename) return 0;
+    size_t len = strlen(filename);
+    if (len < 13) return 0;
+    if (!(IS_UPPER_ASCII(filename[0]) && IS_UPPER_ASCII(filename[1]) &&
+          IS_UPPER_ASCII(filename[2]) && IS_UPPER_ASCII(filename[3])))
+        return 0;
+    if (filename[4] != '_' || filename[8] != '.' || filename[11] != '.')
+        return 0;
+
+    if (idSize < 12) return 0;
+    memcpy(outId, filename, 11);
+    outId[11] = '\0';
+
+    const char *titleStart = &filename[12];
+    const char *dot = strrchr(titleStart, '.');
+    size_t tlen = dot ? (size_t)(dot - titleStart) : strlen(titleStart);
+    if (tlen + 1 > titleSize) tlen = titleSize - 1;
+    memcpy(outTitle, titleStart, tlen);
+    outTitle[tlen] = '\0';
+    return 1;
+}
+
+
 typedef struct {
   char titleID[12];
   char *fullPath;
@@ -140,12 +170,6 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
         printf("Failed to open %s for scanning\n", entry->d_name);
         continue;
       }
-// If ID already present, skip further processing
-if (curTarget->id != NULL && strlen(curTarget->id) == 11) {
-  curTarget = curTarget->next;
-  continue;
-}
-
       chdir(titlePath);
       // Process inner directory recursively
       _findISO(d, result, device);
@@ -221,36 +245,44 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   // get it from ISO
   int cacheMisses = 0;
   char *titleID = NULL;
-  Target *curTarget = result->first;
-  while (curTarget != NULL) {
-    // Ignore targets not belonging to the current device
+Target *curTarget = result->first;
+while (curTarget != NULL) {
+    /* Skip targets from other devices */
     if (curTarget->device != device) {
-      curTarget = curTarget->next;
-      continue;}
-}
+        curTarget = curTarget->next;
+        continue;
     }
 
-    // Try to get title ID from cache
+    /* Serial already known (legacy filename) */
+    if (curTarget->id && strlen(curTarget->id) == 11) {
+        curTarget = curTarget->next;
+        continue;
+    }
+
+    /* Try cache first */
     if (cache != NULL) {
-      titleID = getCachedTitleID(curTarget->fullPath, cache);
+        titleID = getCachedTitleID(curTarget->fullPath, cache);
     }
 
     if (titleID != NULL) {
-      curTarget->id = strdup(titleID);
-    } else { // Get title ID from ISO
-      cacheMisses++;
-      printf("Cache miss for %s\n", curTarget->fullPath);
-      curTarget->id = getTitleID(curTarget->fullPath);
-      if (curTarget->id == NULL) {
-        uiSplashLogString(LEVEL_WARN, "Failed to scan\n%s\n", curTarget->fullPath);
-        curTarget = freeTarget(result, curTarget);
-        result->total -= 1;
-        continue;
-      }
+        curTarget->id = strdup(titleID);
+    } else {
+        cacheMisses++;
+        titleID = getTitleID(curTarget->fullPath);
+        if (titleID == NULL) {
+            uiSplashLogString(LEVEL_WARN, "Failed to scan\n%s\n", curTarget->fullPath);
+            curTarget = freeTarget(result, curTarget);
+            result->total -= 1;
+            continue;
+        }
+        curTarget->id = strdup(titleID);
+        if (cache != NULL) {
+            addEntryToTitleIDCache(curTarget->id, curTarget->fullPath, cache);
+            isCacheUpdateNeeded = 1;
+        }
     }
-
     curTarget = curTarget->next;
-  }
+}
   freeTitleCache(cache);
 
   if ((cacheMisses > 0) || (isCacheUpdateNeeded)) {
