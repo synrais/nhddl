@@ -165,7 +165,6 @@ void closeUI() {
 // Main UI loop. Displays the target list.
 
 int uiLoop(TargetList *titles) {
-  // Reinitialize UI if video mode doesn't match
   if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
     uiInit();
   }
@@ -206,7 +205,7 @@ int uiLoop(TargetList *titles) {
 
   isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
 
-  int prevInput = 0, input = 0;
+  int input = 0, prevInput = 0;
   int needToLoadCover = 0;
 
   while (1) {
