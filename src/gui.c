@@ -163,80 +163,104 @@ void closeUI() {
 }
 
 // Main UI loop. Displays the target list.
+
 int uiLoop(TargetList *titles) {
-    // Reinitialize UI if video mode doesn't match
-    if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
-        uiInit();
-    }
+  // Reinitialize UI if video mode doesn't match
+  if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
+    uiInit();
+  }
 
-    int res = 0;
-    if ((gsGlobal == NULL) && (res = uiInit(0))) {
-        printf("ERROR: Failed to init UI: %d
+  int res = 0;
+  if ((gsGlobal == NULL) && (res = uiInit())) {
+    printf("ERROR: Failed to init UI: %d
 ", res);
-        goto exit;
+    goto exit;
+  }
+
+  initPad();
+
+  int isCoverUninitialized = 1;
+  int selectedTitleIdx = 0;
+  int maxTitlesPerPage = (gsGlobal->Height - (headerHeight + footerHeight)) / getFontLineHeight();
+  Target *curTarget = titles->first;
+
+  char *lastTitle = calloc(sizeof(char), PATH_MAX + 1);
+  if (!getLastLaunchedTitle(lastTitle)) {
+    int mountpointLen;
+    while (curTarget != NULL) {
+      mountpointLen = getRelativePathIdx(curTarget->fullPath);
+      if (mountpointLen == -1)
+        mountpointLen = 0;
+
+      if (!strcmp(lastTitle, &curTarget->fullPath[mountpointLen])) {
+        selectedTitleIdx = curTarget->idx;
+        break;
+      }
+      curTarget = curTarget->next;
+    }
+    if (curTarget == NULL) {
+      curTarget = titles->first;
+    }
+  }
+  free(lastTitle);
+
+  isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+
+  int prevInput = 0, input = 0;
+  int needToLoadCover = 0;
+
+  while (1) {
+    gsKit_clear(gsGlobal, BGColor);
+    gsKit_TexManager_nextFrame(gsGlobal);
+
+    if (needToLoadCover && (input == 0)) {
+      curTarget = getTargetByIdx(titles, selectedTitleIdx);
+      isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+      needToLoadCover = 0;
     }
 
-    initPad();
+    drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
+                  isCoverUninitialized ? NULL : coverTexture);
 
-    int isCoverUninitialized = 1;
-    int selectedTitleIdx = 0;
-    int maxTitlesPerPage = (gsGlobal->Height - (headerHeight + footerHeight)) / getFontLineHeight();
-    Target *curTarget = titles->first;
+    gsKit_queue_exec(gsGlobal);
+    gsKit_finish();
+    gsKit_sync_flip(gsGlobal);
 
-    char *lastTitle = calloc(sizeof(char), PATH_MAX + 1);
-    if (!getLastLaunchedTitle(lastTitle)) {
-        curTarget = findTargetByLastTitle(titles, lastTitle);
-        if (curTarget) selectedTitleIdx = curTarget->idx;
+    input = pollInput();
+
+    if (input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1)) {
+      if (input & PAD_UP) {
+        selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
+      } else if (input & PAD_DOWN) {
+        selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
+      } else if (input & PAD_R1) {
+        selectedTitleIdx += maxTitlesPerPage;
+        if (selectedTitleIdx >= titles->total) selectedTitleIdx = titles->total - 1;
+      } else if (input & PAD_L1) {
+        selectedTitleIdx -= maxTitlesPerPage;
+        if (selectedTitleIdx < 0) selectedTitleIdx = 0;
+      }
+      needToLoadCover = 1;
     }
-    free(lastTitle);
 
-    isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-
-    int prevInput = 0, input = 0;
-    int needToLoadCover = 0;
-
-    while (1) {
-        gsKit_clear(gsGlobal, BGColor);
-        gsKit_TexManager_nextFrame(gsGlobal);
-
-        if (needToLoadCover && (input == 0)) {  // Only load cover after navigation stops
-            curTarget = getTargetByIdx(titles, selectedTitleIdx);
-            isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-            needToLoadCover = 0;
-        }
-
-        drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
-                      isCoverUninitialized ? NULL : coverTexture);
-
-        gsKit_queue_exec(gsGlobal);
-        gsKit_finish();
-        gsKit_sync_flip(gsGlobal);
-
-        input = pollInput();
-
-        if (input != prevInput && (input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1))) {
-            if (input & PAD_UP) selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
-            else if (input & PAD_DOWN) selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
-            else if (input & PAD_R1) selectedTitleIdx = min(selectedTitleIdx + maxTitlesPerPage, titles->total - 1);
-            else if (input & PAD_L1) selectedTitleIdx = max(selectedTitleIdx - maxTitlesPerPage, 0);
-
-            needToLoadCover = 1; // Mark cover for loading after input stops
-        }
-
-        if (input & (PAD_CROSS | PAD_CIRCLE)) {
-            uiLaunchTitle(copyTarget(curTarget), NULL);
-            return -1;
-        }
-        if (input & PAD_TRIANGLE) uiTitleOptionsLoop(curTarget);
-        if (input & PAD_START) break;
-
-        prevInput = input;
+    if (input & (PAD_CROSS | PAD_CIRCLE)) {
+      Target *target = copyTarget(curTarget);
+      freeTargetList(titles);
+      uiLaunchTitle(target, NULL);
+      return -1;
+    } else if (input & PAD_TRIANGLE) {
+      if ((res = uiTitleOptionsLoop(curTarget)) < 0) return -1;
+    } else if (input & PAD_START) {
+      break;
     }
+
+    prevInput = input;
+  }
 
 exit:
-    closePad();
-    closeUI();
-    return res;
+  closePad();
+  closeUI();
+  return res;
 }
 
 
