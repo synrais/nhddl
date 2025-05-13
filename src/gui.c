@@ -209,9 +209,8 @@ int uiLoop(TargetList *titles) {
   isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
 
   // Main UI loop
-  int frameCount = 0;
-  int prevInput = 0;
-  int input = 0;
+  int frameCount = 0, prevInput = 0, input = 0;
+  unsigned int lastInput = 0;
   while (1) {
     gsKit_clear(gsGlobal, BGColor);
     gsKit_TexManager_nextFrame(gsGlobal);
@@ -232,15 +231,21 @@ int uiLoop(TargetList *titles) {
     gsKit_finish();
     gsKit_sync_flip(gsGlobal);
 
-    // Process user inputs:
-    if (input == -1)            // If input is -1, block until input changes
-      input = waitForInput(-1); 
-        
-        if (frameCount && input == prevInput)
-            continue;
-        frameCount = 0;
-        lastInput = prevInput;
-        prevInput = input;
+    // Process user inputs: block once if input == -1, otherwise poll
+    if (input == -1) {
+      input = waitForInput(-1);
+    } else {
+      input = pollInput();
+    }
+
+    // Debounce: ignore repeats within the same frame window
+    if (frameCount && input == prevInput)
+      continue;
+
+    // Shift inputs
+    frameCount = 0;
+    lastInput = prevInput;
+    prevInput = input;
         if (frameCount && input == prevInput)
             continue;
         frameCount = 0;
