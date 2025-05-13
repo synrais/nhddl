@@ -164,9 +164,6 @@ void closeUI() {
 
 // Main UI loop. Displays the target list.
 int uiLoop(TargetList *titles) {
-    int lastNavInput = 0;
-    int artNeedsLoad = 1;
-
   // Reinitialize UI if video mode doesn't match
   if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
     uiInit();
@@ -209,7 +206,7 @@ int uiLoop(TargetList *titles) {
   free(lastTitle);
 
   // Load cover art
-  artNeedsLoad = 1;  // deferred load
+      artNeedsLoad = 1;  // defer cover-art load
 
   // Main UI loop
   int frameCount = 0;
@@ -221,7 +218,8 @@ int uiLoop(TargetList *titles) {
 
     // Reload target if index has changed
     if (curTarget->idx != selectedTitleIdx) {
-      curTarget = getTargetByIdx(titles, selectedTitleIdx); artNeedsLoad = 1; }
+      curTarget = getTargetByIdx(titles, selectedTitleIdx);
+          artNeedsLoad = 1;  // defer cover-art load
     }
 
     // Draw title list
@@ -236,17 +234,7 @@ int uiLoop(TargetList *titles) {
 
     // Process user inputs:
     if (input == -1)            // If input is -1, block until input changes
-      input = waitForInput(-1); 
-// Deferred art load on nav-button release
-{
-    int navMask = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
-    if (artNeedsLoad && (lastNavInput & navMask) && !(input & navMask)) {
-        isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-        artNeedsLoad = 0;
-    }
-    lastNavInput = input;
-}
-// Used to ignore held inputs after returning from title options
+      input = waitForInput(-1); // Used to ignore held inputs after returning from title options
     else
       input = pollInput();
 
@@ -455,17 +443,7 @@ int uiTitleOptionsLoop(Target *target) {
 
     // Process user inputs
     input = waitForInput(-1);
-    
-// Deferred art load on nav-button release
-{
-    int navMask = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
-    if (artNeedsLoad && (lastNavInput & navMask) && !(input & navMask)) {
-        isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-        artNeedsLoad = 0;
-    }
-    lastNavInput = input;
-}
-if (input & (PAD_L1 | PAD_R1)) {
+    if (input & (PAD_L1 | PAD_R1)) {
       // Show full argument list
       if ((res = uiArgumentListLoop(target, titleArguments)))
         goto exit;
@@ -567,17 +545,7 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
 
     // Process user inputs
     input = waitForInput(-1);
-    
-// Deferred art load on nav-button release
-{
-    int navMask = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
-    if (artNeedsLoad && (lastNavInput & navMask) && !(input & navMask)) {
-        isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-        artNeedsLoad = 0;
-    }
-    lastNavInput = input;
-}
-if (input & (PAD_CROSS | PAD_CIRCLE)) {
+    if (input & (PAD_CROSS | PAD_CIRCLE)) {
       // Toggle argument
       curArgument->isDisabled = !curArgument->isDisabled;
       // If the argument was disabled, reset global flag
