@@ -239,21 +239,6 @@ int uiLoop(TargetList *titles) {
     }
 
     // Debounce: ignore repeats within the same frame window
-    if (frameCount && input == prevInput)
-      continue;
-
-    // Shift inputs
-    frameCount = 0;
-    lastInput = prevInput;
-    prevInput = input;
-        if (frameCount && input == prevInput)
-            continue;
-        frameCount = 0;
-        lastInput = prevInput;
-        prevInput = input;
-        // Used to ignore held inputs after returning from title options
-    else
-      input = pollInput();
 
     if (gsGlobal->Mode == GS_MODE_PAL)
       frameCount = (frameCount + 1) % 8; // Handle input only every 8th frame unless it changes
