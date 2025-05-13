@@ -164,6 +164,9 @@ void closeUI() {
 
 // Main UI loop. Displays the target list.
 int uiLoop(TargetList *titles) {
+    int lastNavInput = 0;
+    int artNeedsLoad = 0;
+
   // Reinitialize UI if video mode doesn't match
   if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
     uiInit();
