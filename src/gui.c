@@ -212,6 +212,8 @@ int uiLoop(TargetList *titles) {
   int frameCount = 0;
   int prevInput = 0;
   int input = 0;
+    int prevInput = 0;
+    unsigned int lastInput = 0;
   while (1) {
     gsKit_clear(gsGlobal, BGColor);
     gsKit_TexManager_nextFrame(gsGlobal);
@@ -234,7 +236,11 @@ int uiLoop(TargetList *titles) {
 
     // Process user inputs:
     if (input == -1)            // If input is -1, block until input changes
-      input = waitForInput(-1); // Used to ignore held inputs after returning from title options
+      input = waitForInput(-1);
+    lastInput = prevInput;
+    prevInput = input;
+    lastInput = prevInput;
+    prevInput = input; // Used to ignore held inputs after returning from title options
     else
       input = pollInput();
 
@@ -247,7 +253,6 @@ int uiLoop(TargetList *titles) {
       continue;
 
     frameCount = 0;
-    lastInput = prevInput;
     prevInput = input;
 
     if (input & (PAD_CROSS | PAD_CIRCLE)) {
@@ -257,13 +262,13 @@ int uiLoop(TargetList *titles) {
       uiLaunchTitle(target, NULL);
       // Something went wrong, main loop must exit immediately
       return -1;
-    } else if (input & PAD_UP) {
+    } else if ((lastInput & PAD_UP) && !(input & PAD_UP)) {
       // Point to the previous title
       selectedTitleIdx = ((selectedTitleIdx - 1) + titles->total) % titles->total;
-    } else if (input & PAD_DOWN) {
+    } else if ((lastInput & PAD_DOWN) && !(input & PAD_DOWN)) {
       // Advance to the next title
       selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
-    } else if (input & PAD_R1) {
+    } else if ((lastInput & PAD_R1) && !(input & PAD_R1)) {
       // Switch to the next page
       if (selectedTitleIdx == titles->total - 1) {
         selectedTitleIdx = 0; // Wrap around if the last title is selected
@@ -272,7 +277,7 @@ int uiLoop(TargetList *titles) {
         if (selectedTitleIdx >= titles->total)
           selectedTitleIdx = titles->total - 1;
       }
-    } else if (input & PAD_L1) {
+    } else if ((lastInput & PAD_L1) && !(input & PAD_L1)) {
       // Switch to the previous page
       if (selectedTitleIdx == 0) {
         selectedTitleIdx = titles->total - 1; // Wrap around if the first title is selected
@@ -281,7 +286,7 @@ int uiLoop(TargetList *titles) {
         if (selectedTitleIdx < 0)
           selectedTitleIdx = 0;
       }
-    } else if (input & PAD_TRIANGLE) {
+    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
       input = -1;    // Force UI loop to wait once uiTitleOptionsLoop returns
       prevInput = 0; // Reset previous input
       // Enter title options screen
@@ -289,7 +294,7 @@ int uiLoop(TargetList *titles) {
         // Something went wrong, main loop must exit immediately
         return -1;
       }
-    } else if (input & PAD_START) {
+    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
       // Quit
       break;
     }
@@ -415,6 +420,8 @@ int uiTitleOptionsLoop(Target *target) {
   ArgumentList *titleArguments = loadLaunchArgumentLists(target);
   int input = 0;
   int activeArgumentIdx = 0;
+    int prevInput = 0;
+    unsigned int lastInput = 0;
 
   // Parse arguments
   for (int i = 0; i < (uiArgumentsTotal); i++)
@@ -444,7 +451,7 @@ int uiTitleOptionsLoop(Target *target) {
 
     // Process user inputs
     input = waitForInput(-1);
-    if (input & (PAD_L1 | PAD_R1)) {
+    if ((lastInput & (PAD_L1 | PAD_R1)) && !(input & (PAD_L1 | PAD_R1))) {
       // Show full argument list
       if ((res = uiArgumentListLoop(target, titleArguments)))
         goto exit;
@@ -453,15 +460,15 @@ int uiTitleOptionsLoop(Target *target) {
       activeArgumentIdx = 0;
       for (i = 0; i < uiArgumentsTotal; i++)
         uiArguments[i].parse(&uiArguments[i], titleArguments);
-    } else if (input & PAD_SQUARE) {
+    } else if ((lastInput & PAD_SQUARE) && !(input & PAD_SQUARE)) {
       // Launch title without saving arguments
       uiLaunchTitle(target, titleArguments);
       res = -1; // If this was somehow reached, something went terribly wrong
       goto exit;
-    } else if (input & PAD_START) {
+    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
       updateTitleLaunchArguments(target, titleArguments);
       goto exit;
-    } else if (input & PAD_TRIANGLE) {
+    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
       // Quit to title list
       goto exit;
     } else {
@@ -552,24 +559,24 @@ int uiArgumentListLoop(Target *target, ArgumentList *titleArguments) {
       // If the argument was disabled, reset global flag
       if (curArgument->isDisabled)
         curArgument->isGlobal = 0;
-    } else if (input & PAD_UP) {
+    } else if ((lastInput & PAD_UP) && !(input & PAD_UP)) {
       // Point to the previous argument
       selectedArgIdx = (selectedArgIdx - 1 + titleArguments->total) % titleArguments->total;
       curArgument = (curArgument->prev) ? curArgument->prev : titleArguments->last;
-    } else if (input & PAD_DOWN) {
+    } else if ((lastInput & PAD_DOWN) && !(input & PAD_DOWN)) {
       // Advance to the next argument
       selectedArgIdx = (selectedArgIdx + 1) % titleArguments->total;
       curArgument = (curArgument->next) ? curArgument->next : titleArguments->first;
-    } else if (input & (PAD_L1 | PAD_R1)) {
+    } else if ((lastInput & (PAD_L1 | PAD_R1)) && !(input & (PAD_L1 | PAD_R1))) {
       return 0;
-    } else if (input & PAD_SQUARE) {
+    } else if ((lastInput & PAD_SQUARE) && !(input & PAD_SQUARE)) {
       // Launch title without saving arguments
       uiLaunchTitle(target, titleArguments);
       return -1; // If this was somehow reached, something went terribly wrong
-    } else if (input & PAD_START) {
+    } else if ((lastInput & PAD_START) && !(input & PAD_START)) {
       updateTitleLaunchArguments(target, titleArguments);
       return 1;
-    } else if (input & PAD_TRIANGLE) {
+    } else if ((lastInput & PAD_TRIANGLE) && !(input & PAD_TRIANGLE)) {
       return 1;
     }
   }
