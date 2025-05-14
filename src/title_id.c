@@ -1,18 +1,13 @@
-// Gets title ID from PS2 DVD
 #include "common.h"
 #include "gui.h"
+#include "target.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <unistd.h>
-
-//
-// This code is based on isofs.irx and title ID parsing code from Neutrino
-//
 
 #define SECTOR_SIZE 2048
 #define TOC_LBA 16
@@ -32,33 +27,6 @@ struct dirTOCEntry {
   char filename[128];       // 33
 } __attribute__((packed));
 
-
-// Quick path: extract 11‑char serial ID directly from filename, e.g. "SLUS_206.66.Gran Turismo.iso".
-// Returns malloc‑ed string if pattern matches, else NULL.
-static char *extractIDFromPath(const char *path)
-{
-    const char *filename = strrchr(path, '/');
-    if (!filename)
-        filename = path;
-    else
-        filename++; // skip '/'
-
-    // Minimum: 11 chars ID + '.' following => 12
-    if (strlen(filename) < 12)
-        return NULL;
-
-    // Structural check: "XXXX_XXX.XX." at start
-    if (filename[4] != '_' || filename[8] != '.' || filename[11] != '.')
-        return NULL;
-
-    char *id = malloc(12);
-    if (!id)
-        return NULL;
-    memcpy(id, filename, 11);
-    id[11] = '\0';
-    return id;
-}
-
 static unsigned char iso_buf[SECTOR_SIZE];
 
 // Reads Primary Volume Descriptor from specified LBA and extracts root directory LBA
@@ -72,14 +40,12 @@ char *getTitleID(char *path) {
   char *quick = extractIDFromPath(path);
   if (quick) return quick;
 
-  // Open ISO
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
     printf("WARN: %s: Failed to open file: %d\n", path, fd);
     return NULL;
   }
 
-  // Get location of root directory entry
   uint32_t rootLBA = 0;
   int rootLength = 0;
   if (getPVD(fd, &rootLBA, &rootLength) != 0) {
@@ -88,17 +54,14 @@ char *getTitleID(char *path) {
     return NULL;
   }
 
-  // Get SYSTEM.CNF entry
   struct dirTOCEntry *tocEntry = getTOCEntry(fd, rootLBA, rootLength);
-  if (tocEntry == NULL) {
+  if (!tocEntry) {
     printf("WARN: %s: Failed to find SYSTEM.CNF\n", path);
     close(fd);
     return NULL;
   }
 
-  // Seek to SYSTEM.CNF location and read file contents
-  int64_t res = lseek64(fd, (int64_t)tocEntry->fileLBA * SECTOR_SIZE, SEEK_SET);
-  if (res < 0) {
+  if (lseek64(fd, (int64_t)tocEntry->fileLBA * SECTOR_SIZE, SEEK_SET) < 0) {
     printf("WARN: %s: Failed to seek to SYSTEM.CNF\n", path);
     close(fd);
     return NULL;
@@ -112,23 +75,21 @@ char *getTitleID(char *path) {
   }
 
   char *boot2Arg = strstr(systemCNF, "BOOT2");
-  if (boot2Arg == NULL) {
+  if (!boot2Arg) {
     printf("WARN: %s: BOOT2 not found in SYSTEM.CNF\n", path);
     free(systemCNF);
     close(fd);
     return NULL;
   }
 
-  char *titleID = calloc(sizeof(char), 12);
-  // Locate and set ELF file name
+  char *titleID = calloc(12, 1);
   char *selfFile = strstr(boot2Arg, "cdrom0:");
   char *argEnd = strstr(boot2Arg, ";");
-  if (selfFile == NULL || argEnd == NULL) {
+  if (!selfFile || !argEnd) {
     printf("WARN: %s: File name not found in SYSTEM.CNF\n", path);
     free(titleID);
     titleID = NULL;
   } else {
-    // Extract title ID
     argEnd[1] = '1';
     argEnd[2] = '\0';
     memcpy(titleID, &selfFile[8], 11);
@@ -139,65 +100,78 @@ char *getTitleID(char *path) {
   return titleID;
 }
 
-// Reads Primary Volume Descriptor from specified LBA and extracts root directory LBA
 static int getPVD(int fd, uint32_t *lba, int *length) {
-  // Seek to PVD LBA
-  int64_t res = lseek64(fd, (int64_t)TOC_LBA * SECTOR_SIZE, SEEK_SET);
-  if (res < 0) {
+  if (lseek64(fd, (int64_t)TOC_LBA * SECTOR_SIZE, SEEK_SET) < 0) {
     return -EIO;
   }
-  // Read the sector
   if (read(fd, iso_buf, SECTOR_SIZE) == SECTOR_SIZE) {
-    // Make sure the sector contains PVD (type code 1, identifier CD001)
-    if ((iso_buf[0x00] == 1) && (!memcmp(&iso_buf[0x01], "CD001", 5))) {
-      // Read root directory entry and get LBA and length
+    if (iso_buf[0] == 1 && !memcmp(&iso_buf[1], "CD001", 5)) {
       struct dirTOCEntry *tocEntryPointer = (struct dirTOCEntry *)&iso_buf[0x9c];
       *lba = tocEntryPointer->fileLBA;
       *length = tocEntryPointer->length;
       return 0;
-    } else {
-      return -EINVAL;
     }
+    return -EINVAL;
   }
   return -EIO;
 }
 
-// Retrieves SYSTEM.CNF TOC entry using specified root directory TOC
 static struct dirTOCEntry *getTOCEntry(int fd, uint32_t tocLBA, int tocLength) {
-  // Read TOC entries
-  int64_t res = 0;
   while (tocLength > 0) {
-    // Seek to next LBA
-    res = lseek64(fd, (int64_t)tocLBA * SECTOR_SIZE, SEEK_SET);
-    if (res < 0) {
+    if (lseek64(fd, (int64_t)tocLBA * SECTOR_SIZE, SEEK_SET) < 0) {
       return NULL;
     }
-    // Read the sector
     if (read(fd, iso_buf, SECTOR_SIZE) != SECTOR_SIZE) {
       return NULL;
     }
 
-    // Read directory entries until the end of sector
     int tocPos = 0;
-    struct dirTOCEntry *tocEntryPointer;
-    do {
-      tocEntryPointer = (struct dirTOCEntry *)&iso_buf[tocPos];
-
-      if (tocEntryPointer->length == 0)
-        break;
-
-      if (tocEntryPointer->filenameLength && !strcmp(SYSTEM_CNF_NAME, tocEntryPointer->filename)) {
-        // File has been found
-        return tocEntryPointer;
+    struct dirTOCEntry *entry;
+    while (tocPos < SECTOR_SIZE) {
+      entry = (struct dirTOCEntry *)&iso_buf[tocPos];
+      if (entry->length == 0) break;
+      if (entry->filenameLength && !strcmp(SYSTEM_CNF_NAME, entry->filename)) {
+        return entry;
       }
-      // Advance to the next entry
-      tocPos += (tocEntryPointer->length << 16) >> 16;
-    } while (tocPos < 2016);
-
-    // Get next sector LBA
+      tocPos += (entry->length & 0xFFFF);
+    }
     tocLength -= SECTOR_SIZE;
     tocLBA++;
   }
-
   return NULL;
+}
+
+// Cache support
+int loadTitleListCache(const char *devicePath, TargetList *list) {
+    char cachePath[256];
+    snprintf(cachePath, sizeof(cachePath), "%s/titlelist.bin", devicePath);
+    FILE *file = fopen(cachePath, "rb");
+    if (!file) return -1;
+
+    int count;
+    fread(&count, sizeof(int), 1, file);
+    for (int i = 0; i < count; i++) {
+        Target *tgt = malloc(sizeof(Target));
+        fread(tgt, sizeof(Target), 1, file);
+        appendTarget(list, tgt);
+    }
+    fclose(file);
+    return 0;
+}
+
+int saveTitleListCache(const char *devicePath, TargetList *list) {
+    char cachePath[256];
+    snprintf(cachePath, sizeof(cachePath), "%s/titlelist.bin", devicePath);
+    FILE *file = fopen(cachePath, "wb");
+    if (!file) return -1;
+
+    int count = list->total;
+    fwrite(&count, sizeof(int), 1, file);
+    Target *cur = list->first;
+    while (cur) {
+        fwrite(cur, sizeof(Target), 1, file);
+        cur = cur->next;
+    }
+    fclose(file);
+    return 0;
 }
