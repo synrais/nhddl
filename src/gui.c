@@ -164,103 +164,112 @@ void closeUI() {
 
 // Main UI loop. Displays the target list.
 
-
 int uiLoop(TargetList *titles) {
-  if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
-    uiInit();
-  }
-
-  int res = 0;
-  if ((gsGlobal == NULL) && (res = uiInit())) {
-    printf("ERROR: Failed to init UI: %d\n", res);
-    goto exit;
-  }
-
-  initPad();
-
-  int selectedTitleIdx = 0;
-  int maxTitlesPerPage = (gsGlobal->Height - (headerHeight + footerHeight)) / getFontLineHeight();
-  Target *curTarget = titles->first;
-
-  char *lastTitle = calloc(sizeof(char), PATH_MAX + 1);
-  if (!getLastLaunchedTitle(lastTitle)) {
-    int mountpointLen;
-    while (curTarget != NULL) {
-      mountpointLen = getRelativePathIdx(curTarget->fullPath);
-      if (mountpointLen == -1)
-        mountpointLen = 0;
-      if (!strcmp(lastTitle, &curTarget->fullPath[mountpointLen])) {
-        selectedTitleIdx = curTarget->idx;
-        break;
-      }
-      curTarget = curTarget->next;
-    }
-    if (curTarget == NULL) {
-      curTarget = titles->first;
-    }
-  }
-  free(lastTitle);
-
-  int input = 0;
-  int needToLoadCover = 1;
-  int isScrolling = 0;
-  int isCoverUninitialized = 1;
-
-  while (1) {
-    gsKit_clear(gsGlobal, BGColor);
-    gsKit_TexManager_nextFrame(gsGlobal);
-
-    input = pollInput();
-
-    if (input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1)) {
-      isScrolling = 1;
-      needToLoadCover = 1;
-
-      if (input & PAD_UP) {
-        selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
-      } else if (input & PAD_DOWN) {
-        selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
-      } else if (input & PAD_R1) {
-        selectedTitleIdx += maxTitlesPerPage;
-        if (selectedTitleIdx >= titles->total) selectedTitleIdx = titles->total - 1;
-      } else if (input & PAD_L1) {
-        selectedTitleIdx -= maxTitlesPerPage;
-        if (selectedTitleIdx < 0) selectedTitleIdx = 0;
-      }
-    } else if (input == 0 && isScrolling) {
-      isScrolling = 0;
-      if (needToLoadCover) {
-        curTarget = getTargetByIdx(titles, selectedTitleIdx);
-        isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-        needToLoadCover = 0;
-      }
+    if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
+        uiInit();
     }
 
-    drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
-                  (isScrolling || isCoverUninitialized) ? NULL : coverTexture);
-
-    gsKit_queue_exec(gsGlobal);
-    gsKit_finish();
-    gsKit_sync_flip(gsGlobal);
-
-    if (input & (PAD_CROSS | PAD_CIRCLE)) {
-      Target *target = copyTarget(curTarget);
-      freeTargetList(titles);
-      uiLaunchTitle(target, NULL);
-      return -1;
-    } else if (input & PAD_TRIANGLE) {
-      if ((res = uiTitleOptionsLoop(curTarget)) < 0) return -1;
-    } else if (input & PAD_START) {
-      break;
+    int res = 0;
+    if ((gsGlobal == NULL) && (res = uiInit())) {
+        printf("ERROR: Failed to init UI: %d\n", res);
+        goto exit;
     }
-  }
+
+    initPad();
+
+    int selectedTitleIdx = 0;
+    int maxTitlesPerPage = (gsGlobal->Height - (headerHeight + footerHeight)) / getFontLineHeight();
+    Target *curTarget = titles->first;
+
+    char *lastTitle = calloc(sizeof(char), PATH_MAX + 1);
+    if (!getLastLaunchedTitle(lastTitle)) {
+        int mountpointLen;
+        while (curTarget != NULL) {
+            mountpointLen = getRelativePathIdx(curTarget->fullPath);
+            if (mountpointLen == -1) mountpointLen = 0;
+            if (!strcmp(lastTitle, &curTarget->fullPath[mountpointLen])) {
+                selectedTitleIdx = curTarget->idx;
+                break;
+            }
+            curTarget = curTarget->next;
+        }
+        if (curTarget == NULL) {
+            curTarget = titles->first;
+        }
+    }
+    free(lastTitle);
+
+    int input = 0;
+    int isScrolling = 0;
+    int isCoverUninitialized = 0;
+    int needToLoadCover = 1;
+    int debounceCounter = 0;
+    const int debounceDelay = 6;  // frames between allowed moves
+
+    // Initially load the art for the default title
+    curTarget = getTargetByIdx(titles, selectedTitleIdx);
+    isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+    needToLoadCover = 0;
+
+    while (1) {
+        gsKit_clear(gsGlobal, BGColor);
+        gsKit_TexManager_nextFrame(gsGlobal);
+
+        input = pollInput();
+
+        if (debounceCounter > 0) {
+            debounceCounter--;
+        }
+
+        if ((input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1)) && debounceCounter == 0) {
+            isScrolling = 1;
+            needToLoadCover = 1;
+            debounceCounter = debounceDelay;
+
+            if (input & PAD_UP) {
+                selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
+            } else if (input & PAD_DOWN) {
+                selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
+            } else if (input & PAD_R1) {
+                selectedTitleIdx += maxTitlesPerPage;
+                if (selectedTitleIdx >= titles->total) selectedTitleIdx = titles->total - 1;
+            } else if (input & PAD_L1) {
+                selectedTitleIdx -= maxTitlesPerPage;
+                if (selectedTitleIdx < 0) selectedTitleIdx = 0;
+            }
+        } else if (input == 0 && isScrolling) {
+            isScrolling = 0;
+            if (needToLoadCover) {
+                curTarget = getTargetByIdx(titles, selectedTitleIdx);
+                isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+                needToLoadCover = 0;
+            }
+        }
+
+        drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
+                      (!isScrolling && !isCoverUninitialized) ? coverTexture : NULL);
+
+        gsKit_queue_exec(gsGlobal);
+        gsKit_finish();
+        gsKit_sync_flip(gsGlobal);
+
+        if (input & (PAD_CROSS | PAD_CIRCLE)) {
+            Target *target = copyTarget(curTarget);
+            freeTargetList(titles);
+            uiLaunchTitle(target, NULL);
+            return -1;
+        } else if (input & PAD_TRIANGLE) {
+            if ((res = uiTitleOptionsLoop(curTarget)) < 0) return -1;
+        } else if (input & PAD_START) {
+            break;
+        }
+    }
 
 exit:
-  closePad();
-  closeUI();
-  return res;
+    closePad();
+    closeUI();
+    return res;
 }
-
 
 void drawTitleListFooter(int baseX) {
   int baseY = gsGlobal->Height - footerHeight;
