@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-void appendTarget(struct TargetList *list, struct Target *tgt);
+typedef struct Target Target;
+typedef struct TargetList TargetList;
+void appendTarget(TargetList *list, Target *tgt);
 
 //
 // This code is based on isofs.irx and title ID parsing code from Neutrino
