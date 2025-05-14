@@ -201,3 +201,44 @@ static struct dirTOCEntry *getTOCEntry(int fd, uint32_t tocLBA, int tocLength) {
 
   return NULL;
 }
+
+int loadTitleListCache(const char *devicePath, TargetList *list) {
+    char cachePath[256];
+    snprintf(cachePath, sizeof(cachePath), "%s/titlelist.bin", devicePath);
+
+    FILE *file = fopen(cachePath, "rb");
+    if (!file) return -1;
+
+    int count;
+    fread(&count, sizeof(int), 1, file);
+    for (int i = 0; i < count; i++) {
+        Target *tgt = malloc(sizeof(Target));
+        fread(tgt, sizeof(Target), 1, file);
+        tgt->next = NULL;
+        tgt->prev = NULL;
+        appendTarget(list, tgt);
+    }
+
+    fclose(file);
+    return 0;
+}
+
+int saveTitleListCache(const char *devicePath, TargetList *list) {
+    char cachePath[256];
+    snprintf(cachePath, sizeof(cachePath), "%s/titlelist.bin", devicePath);
+
+    FILE *file = fopen(cachePath, "wb");
+    if (!file) return -1;
+
+    int count = list->total;
+    fwrite(&count, sizeof(int), 1, file);
+
+    Target *cur = list->first;
+    while (cur != NULL) {
+        fwrite(cur, sizeof(Target), 1, file);
+        cur = cur->next;
+    }
+
+    fclose(file);
+    return 0;
+}
