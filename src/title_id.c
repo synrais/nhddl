@@ -1,5 +1,4 @@
 // Gets title ID from PS2 DVD
-#include "target.h"
 #include "common.h"
 #include "gui.h"
 #include <errno.h>
@@ -9,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+void appendTarget(struct TargetList *list, struct Target *tgt);
 
 //
 // This code is based on isofs.irx and title ID parsing code from Neutrino
