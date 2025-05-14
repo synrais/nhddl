@@ -199,14 +199,15 @@ int uiLoop(TargetList *titles) {
     }
     free(lastTitle);
 
-    int input = 0;
+    int input = 0, prevInput = 0;
     int isScrolling = 0;
     int isCoverUninitialized = 0;
     int needToLoadCover = 1;
     int debounceCounter = 0;
-    const int debounceDelay = 6;  // frames between allowed moves
+    const int debounceDelay = 6;  // Initial debounce frame count
+    int scrollCount = 0;          // Count how many scrolls were done
 
-    // Initially load the art for the default title
+    // Initially load cover art
     curTarget = getTargetByIdx(titles, selectedTitleIdx);
     isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
     needToLoadCover = 0;
@@ -217,35 +218,49 @@ int uiLoop(TargetList *titles) {
 
         input = pollInput();
 
-        if (debounceCounter > 0) {
-            debounceCounter--;
-        }
+        int navigating = input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1);
 
-        if ((input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1)) && debounceCounter == 0) {
+        if (navigating) {
             isScrolling = 1;
             needToLoadCover = 1;
-            debounceCounter = debounceDelay;
+            scrollCount++;
 
-            if (input & PAD_UP) {
-                selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
-            } else if (input & PAD_DOWN) {
-                selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
-            } else if (input & PAD_R1) {
-                selectedTitleIdx += maxTitlesPerPage;
-                if (selectedTitleIdx >= titles->total) selectedTitleIdx = titles->total - 1;
-            } else if (input & PAD_L1) {
-                selectedTitleIdx -= maxTitlesPerPage;
-                if (selectedTitleIdx < 0) selectedTitleIdx = 0;
+            int allowScroll = 0;
+            if (debounceCounter == 0 || scrollCount > 6) {
+                allowScroll = 1;
+                debounceCounter = (scrollCount <= 6) ? debounceDelay : 0;
             }
-        } else if (input == 0 && isScrolling) {
+
+            if (allowScroll) {
+                if (input & PAD_UP) {
+                    selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
+                } else if (input & PAD_DOWN) {
+                    selectedTitleIdx = (selectedTitleIdx + 1) % titles->total;
+                } else if (input & PAD_R1) {
+                    selectedTitleIdx += maxTitlesPerPage;
+                    if (selectedTitleIdx >= titles->total) selectedTitleIdx = titles->total - 1;
+                } else if (input & PAD_L1) {
+                    selectedTitleIdx -= maxTitlesPerPage;
+                    if (selectedTitleIdx < 0) selectedTitleIdx = 0;
+                }
+            }
+
+            if (debounceCounter > 0) debounceCounter--;
+
+        } else if (!navigating && isScrolling) {
             isScrolling = 0;
-            if (needToLoadCover) {
-                curTarget = getTargetByIdx(titles, selectedTitleIdx);
-                isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
-                needToLoadCover = 0;
-            }
+            scrollCount = 0;
+            debounceCounter = 0;
         }
 
+        // Only load cover art when not scrolling
+        if (!isScrolling && needToLoadCover) {
+            curTarget = getTargetByIdx(titles, selectedTitleIdx);
+            isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
+            needToLoadCover = 0;
+        }
+
+        // Draw UI with or without artwork
         drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
                       (!isScrolling && !isCoverUninitialized) ? coverTexture : NULL);
 
@@ -263,6 +278,8 @@ int uiLoop(TargetList *titles) {
         } else if (input & PAD_START) {
             break;
         }
+
+        prevInput = input;
     }
 
 exit:
