@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+char *extractIDFromPath(const char *path);
+void appendTarget(TargetList *list, Target *tgt);
 
 #define SECTOR_SIZE 2048
 #define TOC_LBA 16
