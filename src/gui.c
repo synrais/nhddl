@@ -164,6 +164,7 @@ void closeUI() {
 
 // Main UI loop. Displays the target list.
 
+
 int uiLoop(TargetList *titles) {
   if ((LAUNCHER_OPTIONS.vmode != VMODE_NONE) && (gsGlobal->Mode != LAUNCHER_OPTIONS.vmode)) {
     uiInit();
@@ -171,8 +172,7 @@ int uiLoop(TargetList *titles) {
 
   int res = 0;
   if ((gsGlobal == NULL) && (res = uiInit())) {
-    printf("ERROR: Failed to init UI: %d
-", res);
+    printf("ERROR: Failed to init UI: %d\n", res);
     goto exit;
   }
 
@@ -201,7 +201,7 @@ int uiLoop(TargetList *titles) {
   }
   free(lastTitle);
 
-  int input = 0, prevInput = 0;
+  int input = 0;
   int needToLoadCover = 1;
   int isScrolling = 0;
   int isCoverUninitialized = 1;
@@ -253,8 +253,6 @@ int uiLoop(TargetList *titles) {
     } else if (input & PAD_START) {
       break;
     }
-
-    prevInput = input;
   }
 
 exit:
@@ -262,6 +260,7 @@ exit:
   closeUI();
   return res;
 }
+
 
 void drawTitleListFooter(int baseX) {
   int baseY = gsGlobal->Height - footerHeight;
