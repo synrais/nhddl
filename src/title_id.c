@@ -1,4 +1,5 @@
 // Gets title ID from PS2 DVD
+#include "target.h"
 #include "common.h"
 #include "gui.h"
 #include <errno.h>
