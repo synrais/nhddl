@@ -199,15 +199,15 @@ int uiLoop(TargetList *titles) {
     }
     free(lastTitle);
 
-    int input = 0, prevInput = 0;
+    int input = 0;
     int isScrolling = 0;
     int isCoverUninitialized = 0;
     int needToLoadCover = 1;
     int debounceCounter = 0;
-    const int debounceDelay = 6;  // Initial debounce frame count
-    int scrollCount = 0;          // Count how many scrolls were done
+    const int debounceDelay = 6;
+    int scrollCount = 0;
+    int loadingArt = 0;
 
-    // Initially load cover art
     curTarget = getTargetByIdx(titles, selectedTitleIdx);
     isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
     needToLoadCover = 0;
@@ -217,7 +217,6 @@ int uiLoop(TargetList *titles) {
         gsKit_TexManager_nextFrame(gsGlobal);
 
         input = pollInput();
-
         int navigating = input & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1);
 
         if (navigating) {
@@ -231,7 +230,7 @@ int uiLoop(TargetList *titles) {
                 debounceCounter = (scrollCount <= 6) ? debounceDelay : 0;
             }
 
-            if (allowScroll) {
+            if (allowScroll && !loadingArt) {
                 if (input & PAD_UP) {
                     selectedTitleIdx = (selectedTitleIdx - 1 + titles->total) % titles->total;
                 } else if (input & PAD_DOWN) {
@@ -246,21 +245,22 @@ int uiLoop(TargetList *titles) {
             }
 
             if (debounceCounter > 0) debounceCounter--;
-
         } else if (!navigating && isScrolling) {
             isScrolling = 0;
             scrollCount = 0;
             debounceCounter = 0;
         }
 
-        // Only load cover art when not scrolling
-        if (!isScrolling && needToLoadCover) {
+        // Only load art if not scrolling and nothing else blocks it
+        if (!isScrolling && needToLoadCover && !loadingArt) {
+            loadingArt = 1;
             curTarget = getTargetByIdx(titles, selectedTitleIdx);
             isCoverUninitialized = loadCoverArt(curTarget->device, curTarget->id);
             needToLoadCover = 0;
+            loadingArt = 0;
         }
 
-        // Draw UI with or without artwork
+        // Draw titles only (no art if scrolling)
         drawTitleList(titles, selectedTitleIdx, maxTitlesPerPage,
                       (!isScrolling && !isCoverUninitialized) ? coverTexture : NULL);
 
@@ -278,8 +278,6 @@ int uiLoop(TargetList *titles) {
         } else if (input & PAD_START) {
             break;
         }
-
-        prevInput = input;
     }
 
 exit:
