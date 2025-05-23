@@ -1,3 +1,114 @@
+
+// Necessary includes
+#include "common.h"
+#include "devices.h"
+#include "gui.h"
+#include "options.h"
+#include "title_id.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <ps2sdkapi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <time.h>
+
+// Timestamp checking utility function
+int checkDirectoryTimestamp(const char* dirPath, const char* timestampPath) {
+    struct stat dir_stat;
+    FILE* tsFile;
+    time_t storedTimestamp, currentTimestamp;
+
+    if (stat(dirPath, &dir_stat) != 0) {
+        uiSplashLogString(LEVEL_ERROR, "ERROR: Unable to get timestamp for %s\n", dirPath);
+        return -1;
+    }
+    currentTimestamp = dir_stat.st_mtime;
+
+    tsFile = fopen(timestampPath, "rb");
+    if (tsFile) {
+        if (fread(&storedTimestamp, sizeof(time_t), 1, tsFile) != 1) {
+            fclose(tsFile);
+            uiSplashLogString(LEVEL_WARN, "WARN: Timestamp read failure, performing rescan\n");
+            return 1;
+        }
+        fclose(tsFile);
+
+        uiSplashLogString(LEVEL_INFO, "DEBUG: Current timestamp: %ld, Cached timestamp: %ld\n", currentTimestamp, storedTimestamp);
+
+        if (storedTimestamp == currentTimestamp) {
+            uiSplashLogString(LEVEL_WARN, "WARN: Timestamps match. Skipping ISO scan, using cache.bin directly.\n");
+            return 0;
+        } else {
+            uiSplashLogString(LEVEL_INFO, "INFO: Timestamps differ, full rescan required.\n");
+        }
+    } else {
+        uiSplashLogString(LEVEL_WARN, "WARN: Timestamp file missing, performing rescan.\n");
+    }
+
+    tsFile = fopen(timestampPath, "wb");
+    if (!tsFile) {
+        uiSplashLogString(LEVEL_ERROR, "ERROR: Unable to open timestamp file for writing\n");
+        return -1;
+    }
+    fwrite(&currentTimestamp, sizeof(time_t), 1, tsFile);
+    fclose(tsFile);
+
+    return 1;
+}
+
+// Modified findISO function with timestamp checking
+int findISO(TargetList *result, struct DeviceMapEntry *device) {
+    DIR *directory;
+    char timestampPath[PATH_MAX];
+
+    snprintf(timestampPath, PATH_MAX, "%s/timestamp.dat", device->mountpoint);
+
+    int tsCheck = checkDirectoryTimestamp(device->mountpoint, timestampPath);
+    if (tsCheck == 0) {
+        uiSplashLogString(LEVEL_INFO_NODELAY, "INFO: Loading titles directly from cache...\n");
+        processTitleID(result, device);
+        return 0;
+    } else if (tsCheck == -1) {
+        return -EIO;
+    }
+
+    curRecursionLevel = 1;
+    directory = opendir(device->mountpoint);
+    if (directory == NULL) {
+        uiSplashLogString(LEVEL_ERROR, "ERROR: Can't open %s\n", device->mountpoint);
+        return -ENOENT;
+    }
+
+    chdir(device->mountpoint);
+    if (_findISO(directory, result, device)) {
+        closedir(directory);
+        return -ENOENT;
+    }
+    closedir(directory);
+
+    if (result->total == 0) {
+        return -ENOENT;
+    }
+
+    processTitleID(result, device);
+
+    if (result->first == NULL) {
+        return -ENOENT;
+    }
+
+    int idx = 0;
+    Target *curTitle = result->first;
+    while (curTitle != NULL) {
+        curTitle->idx = idx++;
+        curTitle = curTitle->next;
+    }
+
+    return 0;
+}
 // Implements titleScanFunc for file-based devices (MMCE, BDM)
 #include "common.h"
 #include "devices.h"
