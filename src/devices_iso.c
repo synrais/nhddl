@@ -25,24 +25,24 @@ typedef struct TitleIDCache {
 } TitleIDCache;
 
 int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device);
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering _findISO");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering _findISO%s", "");
 void processTitleID(TargetList *result, struct DeviceMapEntry *device);
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering processTitleID");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering processTitleID%s", "");
 
 int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device);
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering storeTitleIDCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering storeTitleIDCache%s", "");
 int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device);
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering loadTitleIDCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering loadTitleIDCache%s", "");
 char *getCachedTitleID(char *fullPath, TitleIDCache *cache);
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering getCachedTitleID");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering getCachedTitleID%s", "");
 void freeTitleCache(TitleIDCache *cache);
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering freeTitleCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering freeTitleCache%s", "");
 
 // Directories to skip when browsing for ISOs
 const char *ignoredDirs[] = {
     "nhddl", "neutrino", "APPS", "ART", "CFG", "CHT", "LNG", "THM", "VMC", "XEBPLUS", "MemoryCards", "bbnl",
 };
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting freeTitleCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting freeTitleCache%s", "");
 
 // Used by _findISO to limit recursion depth
 #define MAX_SCAN_DEPTH 6
@@ -51,11 +51,11 @@ static int curRecursionLevel = 1;
 // Scans given storage device and appends valid launch candidates to TargetList
 // Returns 0 if successful, non-zero if no targets were found or an error occurs
 int findISO(TargetList *result, struct DeviceMapEntry *device) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering findISO");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering findISO%s", "");
   DIR *directory;
 
-  if (device->mode == MODE_NONE || device->mountpoint == NULL)
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] Device mode NONE or mountpoint NULL in findISO");
+  if (device->mode == MODE_NONE || device->mountpoint == NULL) {
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] Device mode NONE or mountpoint NULL in findISO%s", "");
     return -ENODEV;
 
   curRecursionLevel = 1; // Reset recursion level
@@ -87,7 +87,7 @@ int findISO(TargetList *result, struct DeviceMapEntry *device) {
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Processing Title IDs for device: %s", device->mountpoint);
 
   if (result->first == NULL) {
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] result->first is NULL after processTitleID");
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] result->first is NULL after processTitleID%s", "");
     return -ENOENT;
   }
 
@@ -102,13 +102,13 @@ int findISO(TargetList *result, struct DeviceMapEntry *device) {
 
   return 0;
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting findISO");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting findISO%s", "");
 
 // Searches rootpath and adds discovered ISOs to TargetList
 int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering _findISO");
-  if (directory == NULL)
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Directory is NULL in _findISO");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering _findISO%s", "");
+  if (directory == NULL) {
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Directory is NULL in _findISO%s", "");
     return -ENOENT;
 
   // Read directory entries
@@ -116,7 +116,7 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
   char *fileext;
   char titlePath[PATH_MAX + 1];
   if (!getcwd(titlePath, PATH_MAX + 1)) { // Initialize titlePath with current working directory
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to getcwd in _findISO");
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to getcwd in _findISO%s", "");
     uiSplashLogString(LEVEL_ERROR, "Failed to get cwd\n");
     return -ENOENT;
   }
@@ -128,7 +128,7 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
 
   curRecursionLevel++;
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Recursion level: %d", curRecursionLevel);
-  if (curRecursionLevel == MAX_SCAN_DEPTH)
+  if (curRecursionLevel == MAX_SCAN_DEPTH) {
     uiSplashLogString(LEVEL_WARN, "[DEBUG] Max recursion level reached at %s", titlePath);
     uiSplashLogString(LEVEL_WARN, "[DEBUG] Skipping directory due to max recursion: %s", entry->d_name);
     printf("Max recursion limit reached, all directories in %s will be ignored\n", titlePath);
@@ -139,7 +139,7 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
     titlePath[cwdLen] = '\0';
 
     // Ignore .files and directories
-    if (entry->d_name[0] == '.')
+    if (entry->d_name[0] == '.') {
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Skipping dotfile or dotdir: %s", entry->d_name);
       continue;
 
@@ -148,7 +148,7 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
     case DT_DIR:
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Found directory: %s", entry->d_name);
       // Ignore directories if max scan depth is reached
-      if (curRecursionLevel == MAX_SCAN_DEPTH)
+      if (curRecursionLevel == MAX_SCAN_DEPTH) {
     uiSplashLogString(LEVEL_WARN, "[DEBUG] Max recursion level reached at %s", titlePath);
     uiSplashLogString(LEVEL_WARN, "[DEBUG] Skipping directory due to max recursion: %s", entry->d_name);
         continue;
@@ -211,7 +211,7 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
                 title->id = strdup(serial);
                 // Strip serial + separator from the stored name
                 char *rest = title->name + 11;
-                if (*rest == '.' || *rest == ' ' || *rest == '_' || *rest == '-')
+                if (*rest == '.' || *rest == ' ' || *rest == '_' || *rest == '-') {
                     rest++;
                 char *clean = strdup(rest);
                 free(title->name);
@@ -237,27 +237,27 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
 
   return 0;
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting _findISO");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting _findISO%s", "");
 
 // Fills in title ID for every entry in the list
 void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering processTitleID");
-  if (result->total == 0)
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] No entries in TargetList, skipping processTitleID");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering processTitleID%s", "");
+  if (result->total == 0) {
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] No entries in TargetList, skipping processTitleID%s", "");
     return;
 
   // Load title cache
   TitleIDCache *cache = malloc(sizeof(TitleIDCache));
   int isCacheUpdateNeeded = 0;
   if (loadTitleIDCache(cache, device)) {
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] TitleID cache missing or invalid, rebuilding...");
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] TitleID cache missing or invalid, rebuilding...%s", "");
     // Cache file missing or invalid: force update
     isCacheUpdateNeeded = 1;
     uiSplashLogString(LEVEL_INFO_NODELAY, "Building cache.bin...\n");
     free(cache);
     cache = NULL;
   } else if (cache->total != result->total) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Cache entry count does not match, update needed.");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Cache entry count does not match, update needed.%s", "");
     // Set flag if number of entries is different
     isCacheUpdateNeeded = 1;
   }
@@ -269,17 +269,17 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   char *titleID = NULL;
   Target *curTarget = result->first;
   while (curTarget != NULL) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Processing targets for title IDs...");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Processing targets for title IDs...%s", "");
     // Ignore targets not belonging to the current device
     if (curTarget->device != device) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Target device mismatch, skipping.");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Target device mismatch, skipping.%s", "");
       curTarget = curTarget->next;
       continue;
     }
 
     // Try to get title ID from cache
     if (cache != NULL) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Attempting to fetch TitleID from cache.");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Attempting to fetch TitleID from cache.%s", "");
       titleID = getCachedTitleID(curTarget->fullPath, cache);
     }
 
@@ -305,15 +305,15 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   freeTitleCache(cache);
 
   if ((cacheMisses > 0) || (isCacheUpdateNeeded)) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Writing updated cache to disk...");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Writing updated cache to disk...%s", "");
     uiSplashLogString(LEVEL_INFO_NODELAY, "Updating title ID cache...\n");
     if (storeTitleIDCache(result, device)) {
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] Failed to save updated cache.");
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] Failed to save updated cache.%s", "");
       uiSplashLogString(LEVEL_WARN, "Failed to save title ID cache\n");
     }
   }
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting processTitleID");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting processTitleID%s", "");
 
 //
 // Title cache
@@ -338,9 +338,9 @@ typedef struct {
 
 // Saves TargetList into title ID cache on given storage device
 int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering storeTitleIDCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering storeTitleIDCache%s", "");
   if (list->total == 0) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] TargetList is empty, nothing to cache.");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] TargetList is empty, nothing to cache.%s", "");
     return 0;
   }
 
@@ -354,14 +354,14 @@ int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device) {
     curTitle = curTitle->next;
   }
   if (total == 0) {
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] No valid cache entries found.");
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] No valid cache entries found.%s", "");
     printf("WARN: No valid cache entries found\n");
     return 0;
   }
 
   // Make sure path exists
-  if (device->mode == MODE_NONE || device->mountpoint == NULL)
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] Device not ready or mountpoint NULL.");
+  if (device->mode == MODE_NONE || device->mountpoint == NULL) {
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] Device not ready or mountpoint NULL.%s", "");
     return -ENODEV;
 
   // Prepare paths and header
@@ -379,7 +379,7 @@ int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device) {
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Creating config directory: %s", dirPath);
     printf("Creating config directory: %s\n", dirPath);
     if (mkdir(dirPath, 0777)) {
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to create config directory.");
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to create config directory.%s", "");
       printf("ERROR: Failed to create directory\n");
       return -EIO;
     }
@@ -410,7 +410,7 @@ int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device) {
   while (curTitle != NULL) {
     // Ignore empty entries or entries not belonging to the current device
     if ((strlen(curTitle->id) < 11) || (curTitle->device != device)) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Skipping invalid/foreign entry during cache write.");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Skipping invalid/foreign entry during cache write.%s", "");
       curTitle = curTitle->next;
       continue;
     }
@@ -418,7 +418,7 @@ int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device) {
     // Compare paths without the mountpoint
     mountpointLen = getRelativePathIdx(curTitle->fullPath);
     if (mountpointLen == -1) {
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] Failed to get relative path for cache entry.");
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] Failed to get relative path for cache entry.%s", "");
       printf("WARN: Failed to get device mountpoint for %s\n", curTitle->name);
       curTitle = curTitle->next;
       continue;
@@ -449,14 +449,14 @@ int storeTitleIDCache(TargetList *list, struct DeviceMapEntry *device) {
 
   return 0;
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting storeTitleIDCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting storeTitleIDCache%s", "");
 
 // Loads title ID cache from storage into cache
 int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering loadTitleIDCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering loadTitleIDCache%s", "");
   // Make sure path exists
-  if (device->mode == MODE_NONE || device->mountpoint == NULL)
-    uiSplashLogString(LEVEL_WARN, "[DEBUG] Device mode NONE or mountpoint NULL in loadTitleIDCache");
+  if (device->mode == MODE_NONE || device->mountpoint == NULL) {
+    uiSplashLogString(LEVEL_WARN, "[DEBUG] Device mode NONE or mountpoint NULL in loadTitleIDCache%s", "");
     return -ENODEV;
 
   cache->total = 0;
@@ -471,7 +471,7 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
 
   file = fopen(cachePath, "rb");
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Opening cache file for reading: %s", cachePath);
-  if (file == NULL)
+  if (file == NULL) {
     uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to open cache file for reading: %s", cachePath);
     return -ENOENT;
 
@@ -488,13 +488,13 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
 
   // Make sure header is valid
   if (!strcmp(meta.magic, CACHE_MAGIC)) {
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Cache magic mismatch, refusing to load cache.");
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Cache magic mismatch, refusing to load cache.%s", "");
     printf("ERROR: Cache magic doesn't match, refusing to load\n");
     fclose(file);
     return -EINVAL;
   }
   if (meta.version != CACHE_VERSION) {
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Cache version mismatch.");
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Cache version mismatch.%s", "");
     printf("ERROR: Unsupported cache version %d\n", meta.version);
     fclose(file);
     return -EINVAL;
@@ -505,7 +505,7 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
   cache->entries = malloc((sizeof(CacheEntry) * meta.total));
     uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Allocating cache entry memory for %d entries.", meta.total);
   if (cache->entries == NULL) {
-    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to allocate memory for cache entries.");
+    uiSplashLogString(LEVEL_ERROR, "[DEBUG] Failed to allocate memory for cache entries.%s", "");
     printf("ERROR: Can't allocate enough memory\n");
     fclose(file);
     return -ENOMEM;
@@ -515,7 +515,7 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
   CacheEntryHeader header;
   char pathBuf[PATH_MAX + 1];
   while (!feof(file)) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Reading cache entries...");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Reading cache entries...%s", "");
     // Read cache entry header
     pathBuf[0] = '\0';
     result = fread(&header, sizeof(CacheEntryHeader), 1, file);
@@ -543,18 +543,18 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
   fclose(file);
 
   // Free unused memory
-  if (readIndex != meta.total)
+  if (readIndex != meta.total) {
     uiSplashLogString(LEVEL_WARN, "[DEBUG] Adjusted cache size, read entries: %d", readIndex);
     cache->entries = realloc(cache->entries, sizeof(CacheEntry) * readIndex);
 
   cache->total = readIndex;
   return 0;
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting loadTitleIDCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting loadTitleIDCache%s", "");
 
 // Returns a pointer to title ID or NULL if fullPath is not found in the cache
 char *getCachedTitleID(char *fullPath, TitleIDCache *cache) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering getCachedTitleID");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering getCachedTitleID%s", "");
   // This code takes advantage of all entries in the title list being sorted alphabetically.
   // By starting from the index of the last matched entry, we can skip comparing fullPath with entries
   // that have already been matched to a title ID, improving lookup speeds for very large lists.
@@ -574,14 +574,14 @@ char *getCachedTitleID(char *fullPath, TitleIDCache *cache) {
   }
   return NULL;
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting getCachedTitleID");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting getCachedTitleID%s", "");
 
 // Frees memory used by title ID cache
 // All pointers to cache entries (including title IDs) will be invalid
 void freeTitleCache(TitleIDCache *cache) {
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering freeTitleCache");
-  if (cache == NULL)
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] No cache to free in freeTitleCache.");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Entering freeTitleCache%s", "");
+  if (cache == NULL) {
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] No cache to free in freeTitleCache.%s", "");
     return;
 
   for (int i = 0; i < cache->total; i++) {
@@ -591,4 +591,4 @@ void freeTitleCache(TitleIDCache *cache) {
   free(cache->entries);
   free(cache);
 }
-    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting freeTitleCache");
+    uiSplashLogString(LEVEL_INFO_NODELAY, "[DEBUG] Exiting freeTitleCache%s", "");
