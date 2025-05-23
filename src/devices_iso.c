@@ -173,7 +173,7 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
                 // Build the 11-char serial
                 char serial[12];
                 memcpy(serial, title->name, 11);
-                serial[11] = ' ';
+                serial[11] = \'\0\';
                 title->id = strdup(serial);
                 // Strip serial + separator from the stored name
                 char *rest = title->name + 11;
@@ -212,7 +212,8 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   // Load title cache
   TitleIDCache *cache = malloc(sizeof(TitleIDCache));
   int isCacheUpdateNeeded = 0;
-  if (loadTitleIDCache(cache, device)) {
+  int cacheCount = loadTitleIDCache(cache, device);
+    if (cacheCount < 0) {
     // Cache file missing or invalid: force update
     isCacheUpdateNeeded = 1;
     uiSplashLogString(LEVEL_INFO_NODELAY, "Building cache.bin...\n");
@@ -230,6 +231,11 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   char *titleID = NULL;
   Target *curTarget = result->first;
   while (curTarget != NULL) {
+while (curTarget != NULL) {    // Skip ISO if serial parsed from filename
+while (curTarget != NULL) {    if (curTarget->id) {
+while (curTarget != NULL) {        curTarget = curTarget->next;
+while (curTarget != NULL) {        continue;
+while (curTarget != NULL) {    }
     // Skip ISO if serial parsed from filename
     if (curTarget->id && strlen(curTarget->id) == 11) {
         curTarget = curTarget->next;
