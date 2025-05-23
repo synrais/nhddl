@@ -230,6 +230,12 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   char *titleID = NULL;
   Target *curTarget = result->first;
   while (curTarget != NULL) {
+  // Skip ISO open if serial already parsed from filename
+  if (curTarget->id) {
+      curTarget = curTarget->next;
+      continue;
+  }
+
     // Ignore targets not belonging to the current device
     if (curTarget->device != device) {
       curTarget = curTarget->next;
