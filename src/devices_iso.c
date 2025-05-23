@@ -211,17 +211,14 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
 
   // Load title cache
   TitleIDCache *cache = malloc(sizeof(TitleIDCache));
-  int cacheCount = loadTitleIDCache(cache, device);
-if (cacheCount < 0) {
-    // Cache missing or invalid: force update
+  int isCacheUpdateNeeded = 0;
+  if (loadTitleIDCache(cache, device)) {
+    // Cache file missing or invalid: force update
     isCacheUpdateNeeded = 1;
     uiSplashLogString(LEVEL_INFO_NODELAY, "Building cache.bin...\n");
     free(cache);
     cache = NULL;
-} else if (cacheCount != result->total) {
-    // Number of entries changed since last run
-    isCacheUpdateNeeded = 1;
-}} else if (cache->total != result->total) {
+  } else if (cache->total != result->total) {
     // Set flag if number of entries is different
     isCacheUpdateNeeded = 1;
   }
@@ -233,16 +230,11 @@ if (cacheCount < 0) {
   char *titleID = NULL;
   Target *curTarget = result->first;
   while (curTarget != NULL) {
-  // Skip ISO open if serial already parsed from filename
-
-  if (curTarget->id) {
-
-      curTarget = curTarget->next;
-
-      continue;
-
-  }
-
+    // Skip ISO if serial parsed from filename
+    if (curTarget->id && strlen(curTarget->id) == 11) {
+        curTarget = curTarget->next;
+        continue;
+    }
     // Ignore targets not belonging to the current device
     if (curTarget->device != device) {
       curTarget = curTarget->next;
