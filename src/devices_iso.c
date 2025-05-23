@@ -212,8 +212,7 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   // Load title cache
   TitleIDCache *cache = malloc(sizeof(TitleIDCache));
   int isCacheUpdateNeeded = 0;
-  int cacheCount = loadTitleIDCache(cache, device);
-  if (cacheCount < 0) {
+  if (loadTitleIDCache(cache, device)) {
     // Cache file missing or invalid: force update
     isCacheUpdateNeeded = 1;
     uiSplashLogString(LEVEL_INFO_NODELAY, "Building cache.bin...\n");
@@ -231,8 +230,6 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   char *titleID = NULL;
   Target *curTarget = result->first;
   while (curTarget != NULL) {
-    // Skip if serial from filename
-    if (curTarget->id) { curTarget = curTarget->next; continue; }
     // Ignore targets not belonging to the current device
     if (curTarget->device != device) {
       curTarget = curTarget->next;
