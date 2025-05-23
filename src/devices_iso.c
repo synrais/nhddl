@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 
 typedef struct {
@@ -165,6 +166,26 @@ int _findISO(DIR *directory, TargetList *result, struct DeviceMapEntry *device) 
         int nameLength = (int)(fileext - entry->d_name);
         title->name = calloc(sizeof(char), nameLength + 1);
         strncpy(title->name, entry->d_name, nameLength);
+        // —— START OF SERIAL-AT-START DETECTION ——
+        {
+            char tmp1[5], tmp2[4], tmp3[3];
+            if (sscanf(title->name, "%4[A-Z]_%3[0-9].%2[0-9]", tmp1, tmp2, tmp3) == 3) {
+                // Build the 11-char serial
+                char serial[12];
+                memcpy(serial, title->name, 11);
+                serial[11] = ' ';
+                title->id = strdup(serial);
+                // Strip serial + separator from the stored name
+                char *rest = title->name + 11;
+                if (*rest == '.' || *rest == ' ' || *rest == '_' || *rest == '-')
+                    rest++;
+                char *clean = strdup(rest);
+                free(title->name);
+                title->name = clean;
+            }
+        }
+        // —— END OF SERIAL-AT-START DETECTION ——
+
 
         // Increment title counter and update target list
         result->total++;
@@ -192,7 +213,9 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   TitleIDCache *cache = malloc(sizeof(TitleIDCache));
   int isCacheUpdateNeeded = 0;
   if (loadTitleIDCache(cache, device)) {
-    uiSplashLogString(LEVEL_WARN, "Failed to load title ID cache, all ISOs will be rescanned\n");
+    // Cache file missing or invalid: force update
+    isCacheUpdateNeeded = 1;
+    uiSplashLogString(LEVEL_INFO_NODELAY, "Building cache.bin...\n");
     free(cache);
     cache = NULL;
   } else if (cache->total != result->total) {
@@ -207,6 +230,11 @@ void processTitleID(TargetList *result, struct DeviceMapEntry *device) {
   char *titleID = NULL;
   Target *curTarget = result->first;
   while (curTarget != NULL) {
+    // Skip entries with serial-based ID already set
+    if (curTarget->id) {
+      curTarget = curTarget->next;
+      continue;
+    }
     // Ignore targets not belonging to the current device
     if (curTarget->device != device) {
       curTarget = curTarget->next;
@@ -380,9 +408,12 @@ int loadTitleIDCache(TitleIDCache *cache, struct DeviceMapEntry *device) {
 
   // Open cache file for reading
   char cachePath[PATH_MAX];
+
+  FILE *file;
+  // Load the first found cache file
   buildConfigFilePath(cachePath, device->mountpoint, titleIDCacheFile);
 
-  FILE *file = fopen(cachePath, "rb");
+  file = fopen(cachePath, "rb");
   if (file == NULL)
     return -ENOENT;
 
